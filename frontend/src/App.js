@@ -32,10 +32,9 @@ function App() {
   const [shapes, setShapes] = useState([]);
   const [measurements, setMeasurements] = useState([]);
   const [colors, setColors] = useState([]);
-  const [combinedResults, setCombinedResults] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [activeTab, setActiveTab] = useState("upload"); // 'upload', 'settings', 'shape', 'size', 'color', or 'combined'
+  const [activeTab, setActiveTab] = useState("upload"); // 'upload', 'settings', 'shape', 'size', 'color'
   const [debug, setDebug] = useState(null);
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
@@ -87,7 +86,6 @@ function App() {
     setShapes([]);
     setMeasurements([]);
     setColors([]);
-    setCombinedResults([]);
     setError("");
     setDebug({});
 
@@ -309,57 +307,6 @@ function App() {
     }
   };
 
-  const handleDetectAll = async () => {
-    if (!filename) {
-      setError("Please upload an image first");
-      return;
-    }
-
-    try {
-      setLoading(true);
-      setActiveTab("combined");
-      setProcessedImageUrl("");
-      setCombinedResults([]);
-      setError("");
-      setDebug({});
-
-      const response = await axios.post("/detect-shape-color", { filename });
-      console.log("Combined detection response:", response.data);
-      setDebug((prev) => ({ ...prev, combinedResponse: response.data }));
-
-      if (response.data.results) {
-        setCombinedResults(response.data.results);
-      }
-
-      // Handle processed image URL
-      let processedUrl = null;
-      if (response.data.processedImage) {
-        processedUrl = response.data.processedImage;
-      } else if (response.data.image_url) {
-        processedUrl = response.data.image_url;
-      }
-
-      if (processedUrl) {
-        const fixedUrl = fixImageUrl(processedUrl);
-        setProcessedImageUrl(fixedUrl);
-        setDebug((prev) => ({ ...prev, processedUrl, fixedUrl }));
-      } else {
-        setError("No processed image URL in the response");
-        setDebug((prev) => ({
-          ...prev,
-          error: "No processed image URL found",
-        }));
-      }
-
-      setLoading(false);
-    } catch (err) {
-      console.error("Combined detection error:", err);
-      setError("Error in combined detection. Please try again.");
-      setDebug((prev) => ({ ...prev, error: err.toString() }));
-      setLoading(false);
-    }
-  };
-
   return (
     <Container
       fluid
@@ -385,9 +332,9 @@ function App() {
             style={{
               position: "absolute",
               top: "70px",
-              [activeTab === "upload" || activeTab === "settings"
-                ? "right"
-                : "left"]: "30px",
+              ...(activeTab === "upload" || activeTab === "settings"
+                ? { right: "30px" }
+                : { left: "30px" }),
               zIndex: "100",
             }}
           >
@@ -528,46 +475,31 @@ function App() {
                     stroke="currentColor"
                     className="me-2"
                   >
+                    <circle cx="12" cy="12" r="10" strokeWidth="2" />
                     <path
-                      d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"
+                      d="M8 14s1.5 2 4 2 4-2 4-2"
                       strokeWidth="2"
                       strokeLinecap="round"
                       strokeLinejoin="round"
                     />
-                    <path
-                      d="M12 18a6 6 0 1 0 0-12 6 6 0 0 0 0 12z"
-                      strokeWidth="2"
+                    <line
+                      x1="9"
+                      y1="9"
+                      x2="9.01"
+                      y2="9"
+                      strokeWidth="3"
                       strokeLinecap="round"
-                      strokeLinejoin="round"
+                    />
+                    <line
+                      x1="15"
+                      y1="9"
+                      x2="15.01"
+                      y2="9"
+                      strokeWidth="3"
+                      strokeLinecap="round"
                     />
                   </svg>
                   Detect Color
-                </Button>
-                <Button
-                  variant={
-                    activeTab === "combined" ? "success" : "outline-success"
-                  }
-                  className="mx-2 my-1 d-flex align-items-center"
-                  style={{ minWidth: "150px", borderRadius: "4px" }}
-                  onClick={handleDetectAll}
-                  disabled={!filename}
-                >
-                  <svg
-                    width="20"
-                    height="20"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    className="me-2"
-                  >
-                    <path
-                      d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                  Detect All
                 </Button>
               </div>
             </Col>
@@ -597,9 +529,7 @@ function App() {
                       ? "Shape Detection Result"
                       : activeTab === "size"
                       ? "Main Shape Size Detection Result"
-                      : activeTab === "color"
-                      ? "Color Detection Result"
-                      : "Combined Detection Result"}
+                      : "Color Detection Result"}
                   </h5>
                   <div className="text-center">
                     <img
@@ -693,8 +623,7 @@ function App() {
 
             {(activeTab === "shape" && shapes.length > 0) ||
             (activeTab === "size" && measurements.length > 0) ||
-            (activeTab === "color" && colors.length > 0) ||
-            (activeTab === "combined" && combinedResults.length > 0) ? (
+            (activeTab === "color" && colors.length > 0) ? (
               <Col lg={4}>
                 {activeTab === "shape" && shapes.length > 0 && (
                   <ShapeResult shapes={shapes} />
@@ -706,43 +635,6 @@ function App() {
 
                 {activeTab === "color" && colors.length > 0 && (
                   <ColorResult colors={colors} />
-                )}
-
-                {activeTab === "combined" && combinedResults.length > 0 && (
-                  <div>
-                    <h4 className="mb-3">Combined Detection Results</h4>
-                    <div className="results-container">
-                      {combinedResults.map((result, index) => (
-                        <Card key={index} className="mb-3">
-                          <Card.Header className="d-flex justify-content-between align-items-center">
-                            <span>{result.shape}</span>
-                            <div
-                              className="color-swatch"
-                              style={{
-                                backgroundColor: result.hex,
-                                width: "25px",
-                                height: "25px",
-                                borderRadius: "5px",
-                                border: "1px solid #ddd",
-                              }}
-                            ></div>
-                          </Card.Header>
-                          <Card.Body>
-                            <p>
-                              <strong>Color:</strong> {result.color}
-                            </p>
-                            <p>
-                              <strong>Dimensions:</strong> {result.dimensions}
-                            </p>
-                            <p>
-                              <strong>Area:</strong>{" "}
-                              {result.area_mm2.toFixed(2)} mm²
-                            </p>
-                          </Card.Body>
-                        </Card>
-                      ))}
-                    </div>
-                  </div>
                 )}
               </Col>
             ) : null}
